@@ -1,4 +1,4 @@
-name: 'LLM Code Review'
+name: 'Code Review Assistant'
 description: 'A container GitHub Action to review a pull request by Bedrock based Model.'
 author: 'Digital Needs'
 inputs:
