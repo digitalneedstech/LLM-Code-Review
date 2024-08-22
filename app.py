@@ -27,7 +27,6 @@ import boto3
 def check_required_env_vars():
     """Check required environment variables"""
     required_env_vars = [
-        "API_KEY",
         "GITHUB_TOKEN",
         "GITHUB_REPOSITORY",
         "GITHUB_PULL_REQUEST_NUMBER",
