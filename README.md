@@ -1,4 +1,4 @@
-# llm-code-review-action
+# LLMCode Review
 A container GitHub Action to review a pull request by Bedrock based AI models.
 
 ## Pre-requisites
