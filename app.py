@@ -21,7 +21,7 @@ from loguru import logger
 from langchain_aws import ChatBedrock
 from langchain import PromptTemplate, LLMChain
 from langchain_core.prompts import ChatPromptTemplate
-import os
+import os  
 import boto3
 
 def check_required_env_vars():
