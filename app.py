@@ -24,6 +24,7 @@ from langchain_core.prompts import ChatPromptTemplate
 import os
 import boto3
 
+
 def check_required_env_vars():
     """Check required environment variables"""
     required_env_vars = [
@@ -45,8 +46,8 @@ def create_a_comment_to_pull_request(
         github_repository: str,
         pull_request_number: int,
         git_commit_hash: str,
-        body: str,start_line:int,
-        path:str):
+        body: str, start_line: int,
+        path: str):
     """Create a comment to a pull request"""
     headers = {
         "Accept": "application/vnd.github.v3.patch",
@@ -59,7 +60,7 @@ def create_a_comment_to_pull_request(
         "line": start_line,
         "path": path
     }
-    print("repository:"+github_repository)
+    print("repository:" + github_repository)
     url = f"https://api.github.com/repos/{github_repository}/pulls/{pull_request_number}/comments"
     response = requests.post(url, headers=headers, data=json.dumps(data))
     return response
@@ -120,7 +121,7 @@ def get_review(
         """
         prompt = ChatPromptTemplate.from_messages(
             [
-        
+                
                 (
                     "human",
                     template,
@@ -128,8 +129,8 @@ def get_review(
             ]
         )
         chain = prompt | llm
-        review_result=chain.invoke({"question": question}).content
-        #print("review result:"+review_result)
+        review_result = chain.invoke({"question": question}).content
+        # print("review result:"+review_result)
         '''
         prompt = PromptTemplate(template=template, input_variables=["question"])
         print("prompt : " + prompt.template)
@@ -137,7 +138,7 @@ def get_review(
         print("before chain:")
         review_result = llm_chain.invoke({"question": question})
         '''
-        json_review=json.loads(review_result)
+        json_review = json.loads(review_result)
         
         for value in json_review:
             create_a_comment_to_pull_request(
@@ -149,8 +150,8 @@ def get_review(
                 path=value["file_name"],
                 start_line=value["line_number"]
             )
-        
-        #chunked_reviews.append(review_result)
+
+        # chunked_reviews.append(review_result)
     '''
     # If the chunked reviews are only one, return it
     if len(chunked_reviews) == 1:
@@ -182,6 +183,67 @@ def get_review(
     return chunked_reviews, summarized_review
     '''
 
+
+def get_review_for_comment(
+        repo_id: str,
+        diff: str,
+        temperature: float,
+        max_new_tokens: int,
+        top_p: float,
+        top_k: int,
+        prompt_chunk_size: int
+):
+    """Get a review"""
+    # Chunk the prompt
+    chunked_diff_list = chunk_string(input_string=diff, chunk_size=prompt_chunk_size)
+    # Get summary by chunk
+    chunked_reviews = []
+    llm = ChatBedrock(
+        client=boto3.client(
+            service_name="bedrock-runtime",
+            region_name="us-east-1"
+        ),
+        model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
+        model_kwargs=dict(temperature=0)
+    )
+    for chunked_diff in chunked_diff_list:
+        question = chunked_diff
+        template = """Provide a concise summary of the bug found in the code, describing its characteristics,
+        location, and potential effects on the overall functionality and performance of the application.
+        Present the potential issues and errors first, following by the most important findings, in your summary
+        Important: Include block of code / diff in the summary also the line number.
+        The output should only contain a json formatted list with objects containing line number, comment and file name for the line
+        Diff:
+
+        {question}
+        """
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                
+                (
+                    "human",
+                    template,
+                )
+            ]
+        )
+        chain = prompt | llm
+        review_result = chain.invoke({"question": question}).content
+        json_review = json.loads(review_result)
+        
+        for value in json_review:
+            create_a_comment_to_pull_request(
+                github_token=os.getenv("GITHUB_TOKEN"),
+                github_repository=os.getenv("GITHUB_REPOSITORY"),
+                pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
+                git_commit_hash=os.getenv("GIT_COMMIT_HASH"),
+                body=value["comment"],
+                path=value["file_name"],
+                start_line=value["line_number"]
+            )
+        
+       
+
+
 def format_review_comment(summarized_review: str, chunked_reviews: List[str]) -> str:
     """Format reviews"""
     if len(chunked_reviews) == 1:
@@ -194,6 +256,20 @@ def format_review_comment(summarized_review: str, chunked_reviews: List[str]) ->
     """
     return review
 
+def get_diff_pr_comment_id(github_token: str,
+                        github_repository: str,
+                        pull_request_number: int, comment_id:int):
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "authorization": f"Bearer {github_token}"
+    }
+    url = f"https://api.github.com/repos/digitalneedstech/{github_repository}/pulls/{pull_request_number}/comments"
+    response = requests.get(url, headers=headers)
+    list_diff = []
+    for response in response.json():
+        if response["user"]["id"] != 69498018 and response["in_reply_to_id"] == comment_id:
+            list_diff.append(response["diff_hunk"])
+    return list_diff
 
 @click.command()
 @click.option("--diff", type=click.STRING, required=True, help="Pull request diff")
@@ -204,6 +280,8 @@ def format_review_comment(summarized_review: str, chunked_reviews: List[str]) ->
 @click.option("--top-p", type=click.FLOAT, required=False, default=1.0, help="Top N")
 @click.option("--top-k", type=click.INT, required=False, default=1.0, help="Top T")
 @click.option("--log-level", type=click.STRING, required=False, default="INFO", help="Presence penalty")
+@click.option("--comment-id", type=click.INT, required=False, default="false", help="comment Id")
+@click.option("--comment", type=click.STRING, required=False, default="false", help="comment")
 def main(
         diff: str,
         diff_chunk_size: int,
@@ -212,23 +290,33 @@ def main(
         max_new_tokens: int,
         top_p: float,
         top_k: int,
-        log_level: str
+        log_level: str,
+        comment_id: int,
+        comment: str
 ):
     # Set log level
     logger.level(log_level)
     # Check if necessary environment variables are set or not
     check_required_env_vars()
-    #print("diff:" + diff)
+    # print("diff:" + diff)
     # Request a code review
-    get_review(
-        diff=diff,
-        repo_id=repo_id,
-        temperature=temperature,
-        max_new_tokens=max_new_tokens,
-        top_p=top_p,
-        top_k=top_k,
-        prompt_chunk_size=diff_chunk_size
-    )
+    if comment_id:
+        list_diff=get_diff_pr_comment_id(
+            github_token=os.getenv("GITHUB_TOKEN"),
+            github_repository=os.getenv("GITHUB_REPOSITORY"),
+            pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
+            comment_id=comment_id
+        )
+    else:
+        get_review(
+            diff=diff,
+            repo_id=repo_id,
+            temperature=temperature,
+            max_new_tokens=max_new_tokens,
+            top_p=top_p,
+            top_k=top_k,
+            prompt_chunk_size=diff_chunk_size
+        )
     '''
     #logger.debug(f"Summarized review: {summarized_review}")
     #logger.debug(f"Chunked reviews: {chunked_reviews}")
