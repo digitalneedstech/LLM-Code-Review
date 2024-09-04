@@ -51,7 +51,7 @@ jobs:
           secretKey: ${{ secrets.SECRET_KEY }}
           sessionToken: ${{ secrets.SESSION_TOKEN }}
           githubToken: ${{ secrets.TOKEN }}
-          githubRepository: ${{ github.repository }}
+          githubRepository: "piyushbhatia891/code-review-action"
           githubPullRequestNumber: 1
           gitCommitHash: ${{ github.event.pull_request.head.sha }}
           temperature: "0.2"

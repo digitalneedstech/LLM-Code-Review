@@ -15,7 +15,8 @@ name: "Code Review"
 on:
   issue_comment:
     types: [created,deleted,edited]
-
+permissions:
+  pull-requests: write
 jobs:
   pr-comment:
     name: test
