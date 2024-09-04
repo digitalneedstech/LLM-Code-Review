@@ -17,7 +17,7 @@ import click
 import requests   
 from langchain import LLMChain, HuggingFaceHub, PromptTemplate
 from langchain_openai import AzureChatOpenAI 
-from loguru import logger
+from loguru import logger  
 from langchain_aws import ChatBedrock
 from langchain import PromptTemplate, LLMChain
 from langchain_core.prompts import ChatPromptTemplate
