@@ -218,7 +218,10 @@ def update_comment_in_pr(
             location, and potential effects on the overall functionality and performance of the application.
             Present the potential issues and errors first, following by the most important findings, in your summary
             Important: Include block of code / diff in the summary also the line number.
-            The output should only contain a json formatted list with objects containing line number, comment and file name for the line
+            If there are no bugs found, please return an empty array object. But if there are bugs found in the code,
+            return a json formatted list with objects containing line number with object name line_number, comment with 
+            object name as comment and file name with object name as file_name for the line
+            
             Diff:
 
             {question}
@@ -235,29 +238,41 @@ def update_comment_in_pr(
         chain = prompt | llm
         review_result = chain.invoke({"question": question}).content
         json_review = json.loads(review_result)
-        for value in json_review:
-            if "file_name" in value:
-                responses.append({
-                    "line": value["line_number"],
-                    "path": value["file_name"],
-                    "body": value["comment"]
+        if len(json_review) == 0:
+            return update_pr_comment(github_repo, github_token, "APPROVED", pull_number, responses)
+        else:
+            for value in json_review:
+                if "file_name" in value:
+                    responses.append({
+                        "line": value["line_number"],
+                        "path": value["file_name"],
+                        "body": value["comment"]
 
-                })
-            elif "fileName" in value:
-                responses.append({
-                    "line": value["lineNumber"],
-                    "path": value["fileName"],
-                    "body": value["comment"]
+                    })
+                elif "fileName" in value:
+                    responses.append({
+                        "line": value["lineNumber"],
+                        "path": value["fileName"],
+                        "body": value["comment"]
 
-                })
+                    })
+    return update_pr_comment(github_repo, github_token, level, pull_number, responses)
 
+
+def update_pr_comment(github_repo, github_token, level, pull_number, responses):
+    if level == "pr-comment":
+        event = "COMMENT"
+    elif level == "pr":
+        event="REQUEST_CHANGES"
+    else:
+        event = "APPROVED"
     headers = {
         "Accept": "Accept: application/vnd.github+json",
         "authorization": f"Bearer {github_token}"
     }
     data = {
         "body": "Comments are added inline",
-        "event": "REQUEST_CHANGES" if level == "pr-comment" else "COMMENT",
+        "event": event,
         "comments": responses
     }
     url = f"https://api.github.com/repos/{github_repo}/pulls/{pull_number}/reviews"
