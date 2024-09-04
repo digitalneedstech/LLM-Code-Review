@@ -37,6 +37,12 @@ def check_required_env_vars():
         "AWS_SESSION_TOKEN"
     ]
     for required_env_var in required_env_vars:
+        if "AWS_ACCESS_KEY_ID" == required_env_var:
+            print(os.getenv(os.getenv(required_env_var)))
+        if "AWS_SECRET_ACCESS_KEY" == required_env_var:
+            print(os.getenv(os.getenv(required_env_var)))
+        if "AWS_SESSION_TOKEN" == required_env_var:
+            print(os.getenv(os.getenv(required_env_var)))
         if os.getenv(required_env_var) is None:
             raise ValueError(f"{required_env_var} is not set")
 
