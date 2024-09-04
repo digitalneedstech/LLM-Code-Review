@@ -58,14 +58,14 @@ def create_a_comment_to_pull_request(
         "event": "REQUEST_CHANGES",
         "comments": [
             {
-                "line": start_line,
+                "line": 16,
                 "path": path,
                 "body": body
             }
         ]
     }
     print("repository:" + github_repository)
-    url = f"https://api.github.com/repos/{github_repository}/pulls/{pull_request_number}/reviews"
+    url = f"https://api.github.com/repos/piyushbhatia891/code-review-action/pulls/{pull_request_number}/reviews"
     response = requests.post(url, headers=headers, data=json.dumps(data))
     print(response.json())
     return response
