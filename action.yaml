@@ -56,13 +56,6 @@ inputs:
     description: "Session Token"
     required: true
     default: "INFO"
-  commentId:
-    description: "This field explains the comment Id"
-    required: false
-    default: "0"
-  comment:
-    description: "This field explains the comment"
-    required: false    
 runs:
   using: docker
   image: Dockerfile
@@ -83,5 +76,3 @@ runs:
     - "--diff-chunk-size=${{ inputs.pullRequestChunkSize }}"
     - "--diff=${{ inputs.pullRequestDiff }}"
     - "--log-level=${{ inputs.logLevel }}"
-    - "--comment-id=${{ inputs.commentId }}"
-    - "--comment=${{ inputs.comment }}"

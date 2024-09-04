@@ -38,11 +38,11 @@ def check_required_env_vars():
     ]
     for required_env_var in required_env_vars:
         if "AWS_ACCESS_KEY_ID" == required_env_var:
-            print(os.getenv(os.getenv(required_env_var)))
+            print(os.getenv(required_env_var))
         if "AWS_SECRET_ACCESS_KEY" == required_env_var:
-            print(os.getenv(os.getenv(required_env_var)))
+            print(os.getenv(required_env_var))
         if "AWS_SESSION_TOKEN" == required_env_var:
-            print(os.getenv(os.getenv(required_env_var)))
+            print(os.getenv(required_env_var))
         if os.getenv(required_env_var) is None:
             raise ValueError(f"{required_env_var} is not set")
 
@@ -302,8 +302,6 @@ def get_diff_pr_comment_id(github_token: str,
 @click.option("--top-p", type=click.FLOAT, required=False, default=1.0, help="Top N")
 @click.option("--top-k", type=click.INT, required=False, default=1.0, help="Top T")
 @click.option("--log-level", type=click.STRING, required=False, default="INFO", help="Presence penalty")
-@click.option("--comment-id", type=click.INT, required=False, default=0, help="comment Id")
-@click.option("--comment", type=click.STRING, required=False, default="false", help="comment")
 def main(
         diff: str,
         diff_chunk_size: int,
@@ -312,9 +310,7 @@ def main(
         max_new_tokens: int,
         top_p: float,
         top_k: int,
-        log_level: str,
-        comment_id: int,
-        comment: str
+        log_level: str
 ):
     # Set log level
     logger.level(log_level)
@@ -322,16 +318,7 @@ def main(
     check_required_env_vars()
     # print("diff:" + diff)
     # Request a code review
-    print("comment_Id:"+str(comment_id))
-    if str(comment_id) != "0":
-        list_diff = get_diff_pr_comment_id(
-            github_token=os.getenv("GITHUB_TOKEN"),
-            github_repository=os.getenv("GITHUB_REPOSITORY"),
-            pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
-            comment_id=comment_id
-        )
-    else:
-        get_review(
+    get_review(
             diff=diff,
             repo_id=repo_id,
             temperature=temperature,
@@ -339,7 +326,7 @@ def main(
             top_p=top_p,
             top_k=top_k,
             prompt_chunk_size=diff_chunk_size
-        )
+    )
     '''
     #logger.debug(f"Summarized review: {summarized_review}")
     #logger.debug(f"Chunked reviews: {chunked_reviews}")
