@@ -125,7 +125,7 @@ def get_review(
         """
         prompt = ChatPromptTemplate.from_messages(
             [
-                
+
                 (
                     "human",
                     template,
@@ -143,7 +143,7 @@ def get_review(
         review_result = llm_chain.invoke({"question": question})
         '''
         json_review = json.loads(review_result)
-        
+
         for value in json_review:
             create_a_comment_to_pull_request(
                 github_token=os.getenv("GITHUB_TOKEN"),
@@ -223,7 +223,7 @@ def get_review_for_comment(
         """
         prompt = ChatPromptTemplate.from_messages(
             [
-                
+
                 (
                     "human",
                     template,
@@ -233,7 +233,7 @@ def get_review_for_comment(
         chain = prompt | llm
         review_result = chain.invoke({"question": question}).content
         json_review = json.loads(review_result)
-        
+
         for value in json_review:
             create_a_comment_to_pull_request(
                 github_token=os.getenv("GITHUB_TOKEN"),
@@ -244,8 +244,6 @@ def get_review_for_comment(
                 path=value["file_name"],
                 start_line=value["line_number"]
             )
-        
-       
 
 
 def format_review_comment(summarized_review: str, chunked_reviews: List[str]) -> str:
@@ -260,9 +258,10 @@ def format_review_comment(summarized_review: str, chunked_reviews: List[str]) ->
     """
     return review
 
+
 def get_diff_pr_comment_id(github_token: str,
-                        github_repository: str,
-                        pull_request_number: int, comment_id:int):
+                           github_repository: str,
+                           pull_request_number: int, comment_id: int):
     headers = {
         "Accept": "application/vnd.github+json",
         "authorization": f"Bearer {github_token}"
@@ -275,6 +274,7 @@ def get_diff_pr_comment_id(github_token: str,
             list_diff.append(response["diff_hunk"])
     return list_diff
 
+
 @click.command()
 @click.option("--diff", type=click.STRING, required=True, help="Pull request diff")
 @click.option("--diff-chunk-size", type=click.INT, required=False, default=3500, help="Pull request diff")
@@ -284,8 +284,8 @@ def get_diff_pr_comment_id(github_token: str,
 @click.option("--top-p", type=click.FLOAT, required=False, default=1.0, help="Top N")
 @click.option("--top-k", type=click.INT, required=False, default=1.0, help="Top T")
 @click.option("--log-level", type=click.STRING, required=False, default="INFO", help="Presence penalty")
-@click.option("--comment-id", type=click.INT, required=False, help="comment Id")
-@click.option("--comment", type=click.STRING, required=False, help="comment")
+@click.option("--comment-id", type=click.INT, required=False, default=0, help="comment Id")
+@click.option("--comment", type=click.STRING, required=False, default="false", help="comment")
 def main(
         diff: str,
         diff_chunk_size: int,
@@ -304,8 +304,8 @@ def main(
     check_required_env_vars()
     # print("diff:" + diff)
     # Request a code review
-    if comment_id:
-        list_diff=get_diff_pr_comment_id(
+    if comment_id != 0:
+        list_diff = get_diff_pr_comment_id(
             github_token=os.getenv("GITHUB_TOKEN"),
             github_repository=os.getenv("GITHUB_REPOSITORY"),
             pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
