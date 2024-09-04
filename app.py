@@ -151,8 +151,8 @@ def get_review(
                 pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
                 git_commit_hash=os.getenv("GIT_COMMIT_HASH"),
                 body=value["comment"],
-                path=value["file_name"],
-                start_line=value["line_number"]
+                path=value["fileName"],
+                start_line=value["lineNumber"]
             )
 
         # chunked_reviews.append(review_result)
