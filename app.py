@@ -194,6 +194,77 @@ def get_review(
     '''
 
 
+def update_comment_in_pr(
+        diff: str,
+        prompt_chunk_size: int, level: str,
+        github_token: str, github_repo: str, pull_number: int):
+    """Get a review"""
+    # Chunk the prompt
+    chunked_diff_list = chunk_string(input_string=diff, chunk_size=prompt_chunk_size)
+    # Get summary by chunk
+    chunked_reviews = []
+    llm = ChatBedrock(
+        client=boto3.client(
+            service_name="bedrock-runtime",
+            region_name="us-east-1"
+        ),
+        model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
+        model_kwargs=dict(temperature=0)
+    )
+    responses = []
+    for chunked_diff in chunked_diff_list:
+        question = chunked_diff
+        template = """Provide a concise summary of the bug found in the code, describing its characteristics, 
+            location, and potential effects on the overall functionality and performance of the application.
+            Present the potential issues and errors first, following by the most important findings, in your summary
+            Important: Include block of code / diff in the summary also the line number.
+            The output should only contain a json formatted list with objects containing line number, comment and file name for the line
+            Diff:
+
+            {question}
+            """
+        prompt = ChatPromptTemplate.from_messages(
+            [
+
+                (
+                    "human",
+                    template,
+                )
+            ]
+        )
+        chain = prompt | llm
+        review_result = chain.invoke({"question": question}).content
+        json_review = json.loads(review_result)
+        for value in json_review:
+            if "file_name" in value:
+                responses.append({
+                    "line": value["line_number"],
+                    "path": value["file_name"],
+                    "body": value["comment"]
+
+                })
+            elif "fileName" in value:
+                responses.append({
+                    "line": value["lineNumber"],
+                    "path": value["fileName"],
+                    "body": value["comment"]
+
+                })
+
+    headers = {
+        "Accept": "Accept: application/vnd.github+json",
+        "authorization": f"Bearer {github_token}"
+    }
+    data = {
+        "body": "Comments are added inline",
+        "event": "REQUEST_CHANGES" if level == "pr-comment" else "COMMENT",
+        "comments": responses
+    }
+    url = f"https://api.github.com/repos/{github_repo}/pulls/{pull_number}/reviews"
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    return response
+
+
 def format_review_comment(summarized_review: str, chunked_reviews: List[str]) -> str:
     """Format reviews"""
     if len(chunked_reviews) == 1:
@@ -216,6 +287,7 @@ def format_review_comment(summarized_review: str, chunked_reviews: List[str]) ->
 @click.option("--top-p", type=click.FLOAT, required=False, default=1.0, help="Top N")
 @click.option("--top-k", type=click.INT, required=False, default=1.0, help="Top T")
 @click.option("--log-level", type=click.STRING, required=False, default="INFO", help="Presence penalty")
+@click.option("--level", type=click.STRING, required=False, default="INFO", help="PR level")
 def main(
         diff: str,
         diff_chunk_size: int,
@@ -224,7 +296,8 @@ def main(
         max_new_tokens: int,
         top_p: float,
         top_k: int,
-        log_level: str
+        log_level: str,
+        level: str
 ):
     # Set log level
     logger.level(log_level)
@@ -232,15 +305,28 @@ def main(
     check_required_env_vars()
     # print("diff:" + diff)
     # Request a code review
-    get_review(
-        diff=diff,
-        repo_id=repo_id,
-        temperature=temperature,
-        max_new_tokens=max_new_tokens,
-        top_p=top_p,
-        top_k=top_k,
-        prompt_chunk_size=diff_chunk_size
-    )
+    if level == "comment" or level is None:
+        get_review(
+            diff=diff,
+            repo_id=repo_id,
+            temperature=temperature,
+            max_new_tokens=max_new_tokens,
+            top_p=top_p,
+            top_k=top_k,
+            prompt_chunk_size=diff_chunk_size
+        )
+    elif level == "pr-comment" or level == "pr":
+        update_comment_in_pr(
+            github_repo=os.getenv("GITHUB_REPOSITORY"),
+            pull_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
+            github_token=os.getenv("GITHUB_TOKEN"),
+            prompt_chunk_size=diff_chunk_size,
+            level=level,
+            diff=diff
+        )
+    else:
+        logger.error(f"Invalid value for level: {level}")
+
     '''
     #logger.debug(f"Summarized review: {summarized_review}")
     #logger.debug(f"Chunked reviews: {chunked_reviews}")

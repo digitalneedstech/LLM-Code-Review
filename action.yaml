@@ -56,6 +56,10 @@ inputs:
     description: "Session Token"
     required: true
     default: "INFO"
+  level:
+    description: "PR level"
+    required: false
+    default: "comment"
 runs:
   using: docker
   image: Dockerfile
@@ -76,3 +80,4 @@ runs:
     - "--diff-chunk-size=${{ inputs.pullRequestChunkSize }}"
     - "--diff=${{ inputs.pullRequestDiff }}"
     - "--log-level=${{ inputs.logLevel }}"
+    - "--level=${{ inputs.level }}"
