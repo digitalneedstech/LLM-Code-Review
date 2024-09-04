@@ -143,7 +143,7 @@ def get_review(
         review_result = llm_chain.invoke({"question": question})
         '''
         json_review = json.loads(review_result)
-
+        print(json_review)
         for value in json_review:
             create_a_comment_to_pull_request(
                 github_token=os.getenv("GITHUB_TOKEN"),
