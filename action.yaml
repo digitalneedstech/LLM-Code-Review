@@ -59,6 +59,7 @@ inputs:
   commentId:
     description: "This field explains the comment Id"
     required: false
+    default: "0"
   comment:
     description: "This field explains the comment"
     required: false    

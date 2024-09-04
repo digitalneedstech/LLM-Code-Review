@@ -304,7 +304,8 @@ def main(
     check_required_env_vars()
     # print("diff:" + diff)
     # Request a code review
-    if comment_id != 0:
+    print("comment_Id:"+str(comment_id))
+    if comment_id != 0 or comment_id != "0":
         list_diff = get_diff_pr_comment_id(
             github_token=os.getenv("GITHUB_TOKEN"),
             github_repository=os.getenv("GITHUB_REPOSITORY"),
