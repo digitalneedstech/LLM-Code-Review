@@ -37,12 +37,6 @@ def check_required_env_vars():
         "AWS_SESSION_TOKEN"
     ]
     for required_env_var in required_env_vars:
-        if "AWS_ACCESS_KEY_ID" == required_env_var:
-            print(os.getenv(required_env_var))
-        if "AWS_SECRET_ACCESS_KEY" == required_env_var:
-            print(os.getenv(required_env_var))
-        if "AWS_SESSION_TOKEN" == required_env_var:
-            print(os.getenv(required_env_var))
         if os.getenv(required_env_var) is None:
             raise ValueError(f"{required_env_var} is not set")
 
@@ -61,19 +55,14 @@ def create_a_comment_to_pull_request(
     }
     data = {
         "body": body,
-        "event": "REQUEST_CHANGES",
-        "comments": [
-            {
-                "line": 16,
-                "path": path,
-                "body": body
-            }
-        ]
+        "commit_id": git_commit_hash,
+
+        "line": start_line,
+        "path": path
     }
     print("repository:" + github_repository)
-    url = f"https://api.github.com/repos/piyushbhatia891/code-review-action/pulls/{pull_request_number}/reviews"
+    url = f"https://api.github.com/repos/{github_repository}/pulls/{pull_request_number}/comments"
     response = requests.post(url, headers=headers, data=json.dumps(data))
-    print(response.json())
     return response
 
 
@@ -116,7 +105,7 @@ def get_review(
                       "top_k": top_k},
                       huggingfacehub_api_token=os.getenv("API_KEY")
     )
-    
+
     llm.client.api_url = 'https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct'
     '''
     for chunked_diff in chunked_diff_list:
@@ -150,19 +139,8 @@ def get_review(
         review_result = llm_chain.invoke({"question": question})
         '''
         json_review = json.loads(review_result)
-        print(json_review)
         for value in json_review:
-            if "fileName" in value:
-                create_a_comment_to_pull_request(
-                    github_token=os.getenv("GITHUB_TOKEN"),
-                    github_repository=os.getenv("GITHUB_REPOSITORY"),
-                    pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
-                    git_commit_hash=os.getenv("GIT_COMMIT_HASH"),
-                    body=value["comment"],
-                    path=value["fileName"],
-                    start_line=value["lineNumber"]
-                )
-            elif "file_name" in value:
+            if "file_name" in value:
                 create_a_comment_to_pull_request(
                     github_token=os.getenv("GITHUB_TOKEN"),
                     github_repository=os.getenv("GITHUB_REPOSITORY"),
@@ -172,13 +150,23 @@ def get_review(
                     path=value["file_name"],
                     start_line=value["line_number"]
                 )
+            elif "fileName" in value:
+                create_a_comment_to_pull_request(
+                    github_token=os.getenv("GITHUB_TOKEN"),
+                    github_repository=os.getenv("GITHUB_REPOSITORY"),
+                    pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
+                    git_commit_hash=os.getenv("GIT_COMMIT_HASH"),
+                    body=value["comment"],
+                    path=value["fileName"],
+                    start_line=value["lineNumber"]
+                )
 
         # chunked_reviews.append(review_result)
     '''
     # If the chunked reviews are only one, return it
     if len(chunked_reviews) == 1:
         return chunked_reviews, chunked_reviews[0]
-    
+
     question = "\n".join(chunked_reviews)
     template = """Summarize the following file changed in a pull request submitted by a developer on GitHub,
     focusing on major modifications, additions, deletions, and any significant updates within the files.
@@ -191,7 +179,7 @@ def get_review(
     """
     prompt = ChatPromptTemplate.from_messages(
         [
-        
+
             (
                 "human",
                 template,
@@ -200,68 +188,10 @@ def get_review(
     )
     chain = prompt | llm
     summarized_review = chain.invoke({"question": question}).content
-    
+
     print("summarized result:" + summarized_review)
     return chunked_reviews, summarized_review
     '''
-
-
-def get_review_for_comment(
-        repo_id: str,
-        diff: str,
-        temperature: float,
-        max_new_tokens: int,
-        top_p: float,
-        top_k: int,
-        prompt_chunk_size: int
-):
-    """Get a review"""
-    # Chunk the prompt
-    chunked_diff_list = chunk_string(input_string=diff, chunk_size=prompt_chunk_size)
-    # Get summary by chunk
-    chunked_reviews = []
-    llm = ChatBedrock(
-        client=boto3.client(
-            service_name="bedrock-runtime",
-            region_name="us-east-1"
-        ),
-        model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
-        model_kwargs=dict(temperature=0)
-    )
-    for chunked_diff in chunked_diff_list:
-        question = chunked_diff
-        template = """Provide a concise summary of the bug found in the code, describing its characteristics,
-        location, and potential effects on the overall functionality and performance of the application.
-        Present the potential issues and errors first, following by the most important findings, in your summary
-        Important: Include block of code / diff in the summary also the line number.
-        The output should only contain a json formatted list with objects containing line number, comment and file name for the line
-        Diff:
-
-        {question}
-        """
-        prompt = ChatPromptTemplate.from_messages(
-            [
-
-                (
-                    "human",
-                    template,
-                )
-            ]
-        )
-        chain = prompt | llm
-        review_result = chain.invoke({"question": question}).content
-        json_review = json.loads(review_result)
-
-        for value in json_review:
-            create_a_comment_to_pull_request(
-                github_token=os.getenv("GITHUB_TOKEN"),
-                github_repository=os.getenv("GITHUB_REPOSITORY"),
-                pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
-                git_commit_hash=os.getenv("GIT_COMMIT_HASH"),
-                body=value["comment"],
-                path=value["file_name"],
-                start_line=value["line_number"]
-            )
 
 
 def format_review_comment(summarized_review: str, chunked_reviews: List[str]) -> str:
@@ -275,22 +205,6 @@ def format_review_comment(summarized_review: str, chunked_reviews: List[str]) ->
     </details>
     """
     return review
-
-
-def get_diff_pr_comment_id(github_token: str,
-                           github_repository: str,
-                           pull_request_number: int, comment_id: int):
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "authorization": f"Bearer {github_token}"
-    }
-    url = f"https://api.github.com/repos/digitalneedstech/{github_repository}/pulls/{pull_request_number}/comments"
-    response = requests.get(url, headers=headers)
-    list_diff = []
-    for response in response.json():
-        if response["user"]["id"] != 69498018 and response["in_reply_to_id"] == comment_id:
-            list_diff.append(response["diff_hunk"])
-    return list_diff
 
 
 @click.command()
@@ -319,18 +233,18 @@ def main(
     # print("diff:" + diff)
     # Request a code review
     get_review(
-            diff=diff,
-            repo_id=repo_id,
-            temperature=temperature,
-            max_new_tokens=max_new_tokens,
-            top_p=top_p,
-            top_k=top_k,
-            prompt_chunk_size=diff_chunk_size
+        diff=diff,
+        repo_id=repo_id,
+        temperature=temperature,
+        max_new_tokens=max_new_tokens,
+        top_p=top_p,
+        top_k=top_k,
+        prompt_chunk_size=diff_chunk_size
     )
     '''
     #logger.debug(f"Summarized review: {summarized_review}")
     #logger.debug(f"Chunked reviews: {chunked_reviews}")
-    
+
     # Format reviews
     review_comment = format_review_comment(summarized_review=summarized_review,
                                            chunked_reviews=chunked_reviews)
