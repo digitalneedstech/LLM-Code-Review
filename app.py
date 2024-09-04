@@ -305,7 +305,7 @@ def main(
     # print("diff:" + diff)
     # Request a code review
     print("comment_Id:"+str(comment_id))
-    if comment_id != 0 or comment_id != "0":
+    if str(comment_id) != "0":
         list_diff = get_diff_pr_comment_id(
             github_token=os.getenv("GITHUB_TOKEN"),
             github_repository=os.getenv("GITHUB_REPOSITORY"),
