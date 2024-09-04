@@ -16,7 +16,7 @@ from typing import List
 import click
 import requests   
 from langchain import LLMChain, HuggingFaceHub, PromptTemplate
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI 
 from loguru import logger
 from langchain_aws import ChatBedrock
 from langchain import PromptTemplate, LLMChain
