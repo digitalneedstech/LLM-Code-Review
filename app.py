@@ -146,15 +146,26 @@ def get_review(
         json_review = json.loads(review_result)
         print(json_review)
         for value in json_review:
-            create_a_comment_to_pull_request(
-                github_token=os.getenv("GITHUB_TOKEN"),
-                github_repository=os.getenv("GITHUB_REPOSITORY"),
-                pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
-                git_commit_hash=os.getenv("GIT_COMMIT_HASH"),
-                body=value["comment"],
-                path=value["fileName"],
-                start_line=value["lineNumber"]
-            )
+            if "fileName" in value:
+                create_a_comment_to_pull_request(
+                    github_token=os.getenv("GITHUB_TOKEN"),
+                    github_repository=os.getenv("GITHUB_REPOSITORY"),
+                    pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
+                    git_commit_hash=os.getenv("GIT_COMMIT_HASH"),
+                    body=value["comment"],
+                    path=value["fileName"],
+                    start_line=value["lineNumber"]
+                )
+            elif "file_name" in value:
+                create_a_comment_to_pull_request(
+                    github_token=os.getenv("GITHUB_TOKEN"),
+                    github_repository=os.getenv("GITHUB_REPOSITORY"),
+                    pull_request_number=int(os.getenv("GITHUB_PULL_REQUEST_NUMBER")),
+                    git_commit_hash=os.getenv("GIT_COMMIT_HASH"),
+                    body=value["comment"],
+                    path=value["file_name"],
+                    start_line=value["line_number"]
+                )
 
         # chunked_reviews.append(review_result)
     '''
