@@ -284,8 +284,8 @@ def get_diff_pr_comment_id(github_token: str,
 @click.option("--top-p", type=click.FLOAT, required=False, default=1.0, help="Top N")
 @click.option("--top-k", type=click.INT, required=False, default=1.0, help="Top T")
 @click.option("--log-level", type=click.STRING, required=False, default="INFO", help="Presence penalty")
-@click.option("--comment-id", type=click.INT, required=False, default="false", help="comment Id")
-@click.option("--comment", type=click.STRING, required=False, default="false", help="comment")
+@click.option("--comment-id", type=click.INT, required=False, help="comment Id")
+@click.option("--comment", type=click.STRING, required=False, help="comment")
 def main(
         diff: str,
         diff_chunk_size: int,
